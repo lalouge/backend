@@ -15,3 +15,6 @@ celery_app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Auto-discover tasks in all installed apps
 celery_app.autodiscover_tasks()
+
+# Retry Celery Broker Connection Retries Upon Startup
+celery_app.conf.broker_connection_retry_on_startup = True
