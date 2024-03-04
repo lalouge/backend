@@ -11,19 +11,19 @@ from utilities import response
 
 
 class CreateUserManager(UserManager):
-    def _create_user(self, email, password=None, **extra_fields):
+    def _create_user(self, phone, password=None, **extra_fields):
         """
-        Create and save a user with the given email and password.
+        Create and save a user with the given phone and password.
         """
-        if not email:
-            raise ValueError('You must provide a email number')
+        if not phone:
+            raise ValueError('You must provide a phone number')
         
-        # Check for unique constraint on email
-        if self.model.objects.filter(email=email).exists():
-            raise ValueError('A user with this email already exists......')
+        # Check for unique constraint on phone
+        if self.model.objects.filter(phone=phone).exists():
+            raise ValueError('A user with this phone already exists......')
 
         # Create a new user object
-        user = self.model(email=email, password=password, **extra_fields)
+        user = self.model(phone=phone, password=password, **extra_fields)
 
         # Set the user's password
         if password:
@@ -35,7 +35,7 @@ class CreateUserManager(UserManager):
 
         return user
 
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, phone, password=None, **extra_fields):
         """
         Create a normal user.
         """
@@ -49,9 +49,9 @@ class CreateUserManager(UserManager):
         extra_fields['is_active'] = True
 
         # Call _create_user with the provided arguments
-        return self._create_user(email, password, **extra_fields)
+        return self._create_user(phone, password, **extra_fields)
 
-    def create_staff(self, email, password=None, **extra_fields):
+    def create_staff(self, phone, password=None, **extra_fields):
         """
         Create a staff member or an admin.
         """
@@ -65,9 +65,9 @@ class CreateUserManager(UserManager):
         extra_fields['is_active'] = True
 
         # Call _create_user with the provided arguments
-        return self._create_user(email, password, **extra_fields)
+        return self._create_user(phone, password, **extra_fields)
     
-    def create_admin(self, email, password=None, **extra_fields):
+    def create_admin(self, phone, password=None, **extra_fields):
         """
         Create a staff member or an admin.
         """
@@ -81,9 +81,9 @@ class CreateUserManager(UserManager):
         extra_fields['is_active'] = True
 
         # Call _create_user with the provided arguments
-        return self._create_user(email, password, **extra_fields)
+        return self._create_user(phone, password, **extra_fields)
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, phone, password=None, **extra_fields):
         """
         Create a superuser.
         """
@@ -97,9 +97,9 @@ class CreateUserManager(UserManager):
         extra_fields['is_active'] = True
 
         # Call _create_user with the provided arguments
-        return self._create_user(email, password, **extra_fields)
+        return self._create_user(phone, password, **extra_fields)
     
-    def create_externaluser(self, email, password=None, **extra_fields):
+    def create_externaluser(self, phone, password=None, **extra_fields):
         """
         Create external users. External users are users who use the APIs on their own platform
         which is separate from our official platform
@@ -115,16 +115,16 @@ class CreateUserManager(UserManager):
         extra_fields.setdefault('is_active', False)
 
         # Call _create_user with the provided arguments
-        return self._create_user(email, password, **extra_fields)
+        return self._create_user(phone, password, **extra_fields)
 
 
 class GetUserManager(UserManager):
 
-    def email(self, email):
+    def phone(self, phone):
         """
-        Retrieve user with email
+        Retrieve user with phone
         """
-        return self.get(email=email)
+        return self.get(phone=phone)
     
     def query_id(self, query_id):
         try:

@@ -8,10 +8,9 @@ from accounts.models.profiles import UserProfile
 from accounts.serializers.profiles import UserProfileSerializer
 
 from utilities.permissions import AuthPermission
-from utilities.response import APIExceptionError
+from utilities import response
 from rest_framework.parsers import JSONParser
 
-from django.http import Http404
 import requests, socket
 
 class UserProfileView(APIView):
@@ -24,46 +23,51 @@ class UserProfileView(APIView):
 
     def get_user_profiles(self, query_id=None):
         if query_id:
+
             try:
                 user_instance = User.get_user(query_id)
+            except User.DoesNotExist:
+                response.errors(
+                    field_error="User Not Found",
+                    for_developer=f"No User With QueryID {query_id} Exists",
+                    code="NOT_FOUND",
+                    status_code=404,
+                )
+            
             except Exception as e:
-                error_message = "User Profile not found"
-                error_message_1 = str(e)
-                error_data = {
-                    "messages": [error_message, error_message_1],
-                    "status_code": 404,  # Using 403 for forbidden access
-                    "code": "NOT FOUND"
-                }
-                raise APIExceptionError(**error_data)
+                response.errors(
+                    field_error="Failed To Get Users Data",
+                    for_developer=f"{e}",
+                    code="SERVER_ERROR",
+                    status_code=500
+                )
             
             if user_instance:
                 try:
                     user_profile_instance = UserProfile.objects.get(user=user_instance)
                 except UserProfile.DoesNotExist:
-                    error_message = "User profile not found"
-                    error_data = {
-                        "messages": [error_message],
-                        "status_code": 404,  # Using 403 for forbidden access
-                        "code": "NOT_FOUND"
-                    }
-                    raise APIExceptionError(**error_data)
+                    response.errors(
+                        field_error="User Not Found",
+                        for_developer=f"{str(e)}",
+                        code="NOT_FOUND",
+                        status_code=404
+                    )
                 
-                return UserProfileSerializer(user_profile_instance)
+                except Exception as e:
+                    response.errors(
+                        field_error="Failed To Get Users Data",
+                        for_developer=f"{str(e)}",
+                        code="SERVER_ERROR",
+                        status_code=500
+                    )
+                
+                return user_profile_instance
         
         else:
-            user_profile_instances = UserProfile.objects.all()
-            return UserProfileSerializer(user_profile_instances, many=True)
+
+            return UserProfile.objects.all()
 
     def get(self, request):
-        print("DID IT GET HERE?")
-        ip_address = '8.8.8.8'  # Replace with the IP address you want to look up
-        domain_name = socket.gethostbyaddr(ip_address)[0]
-
-        print("\n socket:: ", domain_name)
-        print("Request Host: ", request.META.get('HTTP_HOST', None))
-        print("Request Language: ", request.META.get('HTTP_ACCEPT_LANGUAGE', None))
-        print("Rquest Referrer: ", request.META.get('HTTP_REFERER', None))
-        print("Request User Agent: ", request.META.get('HTTP_USER_AGENT', None))
         ip_address = request.META.get('REMOTE_ADDR')
         url = f'https://ipinfo.io/154.72.153.201/json'
         response = requests.get(url)
@@ -83,20 +87,14 @@ class UserProfileView(APIView):
         # Retrieve specific query parameters
         query_id = query_params.get("query-id", None)
 
-        user_profiles = self.get_user_profiles(query_id)
+        # user_profiles = self.get_user_profiles(query_id)
+        
+        return Response(UserProfileSerializer(self.get_user_profiles(query_id=query_id)).data) if query_id else Response(UserProfileSerializer(self.get_user_profiles(), many=True).data)
 
-        return Response(user_profiles.data)
-
-    def post(self, request):
-        serializer = UserProfileSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserProfileDetailView(APIView):
-    permission_classes = (AuthPermission,)
+    # permission_classes = (AuthPermission,)
     parser_classes = [JSONParser]
     """
     Retrieve, update (PUT or PATCH), or delete a user profile instance.

@@ -22,7 +22,6 @@ class PhoneNumberVerificationOTP(models.Model):
     current_otp = models.OneToOneField('OTP', on_delete=models.DO_NOTHING, null=True)
 
 
-
 class EmailVerificationOTP(models.Model):
     user = models.OneToOneField('User', on_delete=models.CASCADE)
     used_otp = models.ManyToManyField('OTP', through='UsedOTP', related_name='email_used_otp')

@@ -107,7 +107,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     # returns a boolean for every check (get value)
     verify = VerifyUserManager()
 
-    USERNAME_FIELD = 'email'
+    USERNAME_FIELD = 'phone'
     REQUIRED_FIELDS = []
 
     def __str__(self) -> str:
@@ -119,25 +119,25 @@ class User(AbstractBaseUser, PermissionsMixin):
     #     return self.username.lstrip("@")
     
     @classmethod
-    def create_superuser(cls, email: str, password: str = None, **extra_fields) -> dict:
+    def create_superuser(cls, phone: str, password: str = None, **extra_fields) -> dict:
 
         manager = cls.objects
 
-        return manager.create_superuser(email, password, **extra_fields)
+        return manager.create_superuser(phone, password, **extra_fields)
     
     @classmethod
-    def create_admin(cls, email: str, password: str = None, **extra_fields) -> dict:
+    def create_admin(cls, phone: str, password: str = None, **extra_fields) -> dict:
 
         manager = cls.objects
 
-        return manager.create_admin(email, password, **extra_fields)
+        return manager.create_admin(phone, password, **extra_fields)
     
     @classmethod
-    def create_staff(cls, email: str, password: str = None, **extra_fields) -> dict:
+    def create_staff(cls, phone: str, password: str = None, **extra_fields) -> dict:
 
         manager = cls.objects
 
-        return manager.create_staff(email, password, **extra_fields)
+        return manager.create_staff(phone, password, **extra_fields)
     
     # Override the default manager
     @classmethod
@@ -224,7 +224,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         # Building user_id_generator parameters
         # 
 
-        data = [self.user_type, self.username, self.email, str(uuid.uuid5)]
+        data = [self.user_type, self.username, self.phone, str(uuid.uuid5)]
         data_length = sum(len(item) for item in data)
 
         # 

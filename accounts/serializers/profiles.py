@@ -7,7 +7,7 @@ from accounts.serializers.users import UserSerializer
 class GroupSerializer(serializers.ModelField):
     class Meta:
         models = Group
-        fields = ("_type", "name")
+        fields = ("_type", "base_group",)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -34,7 +34,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         representation["user"] = UserSerializer(instance.user).data
-        representation["groups"] = GroupSerializer(instance.groups.all(), many=True).data
+        # representation["groups"] = GroupSerializer(instance.groups.all(), many=True).data
         return representation
 
     def create(self, validated_data):

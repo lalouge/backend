@@ -11,19 +11,19 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
-import os
+
 from datetime import timedelta
-import environ
+
+import os, environ, socket
+
+from django.utils import timezone
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-env = environ.Env(
-    # Set casting, default value
-    DEBUG = (bool, True)
-)
+env = environ.Env()
 
 # Reading .env file
 env_file = os.path.join(BASE_DIR, '.env')
@@ -38,10 +38,22 @@ env.read_env(env_file)
 # SECRET_KEY not in os.environ
 SECRET_KEY = env('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = [".herokuapp.com", "127.0.0.1:3000"]
+# Checking If Project Is Running On LocalHost
+def is_localhost(ip_address):
+    try:
+        localhost_ips = [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if ':' not in ip]
+        return ip_address in localhost_ips
+    except socket.gaierror:
+        return False
+
+# Based On Whether The Project Is Running On LocalHost, Set DEBUG To The Returned Value
+# For LocalHosts, DEBUG = True else DEBUG = False
+# For Security Purpose, Never Run The Project On Production When DEBUG = True
+DEBUG = is_localhost(socket.gethostbyname(socket.gethostname()))
+
+# Setting ALLOWED_HOSTS Based On Whether It's A Local Or Production Environment
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '::1'] if DEBUG else ['.herokuapp.com']
 
 
 # Application definition
@@ -60,6 +72,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     # 'rest_framework_simplejwt.token_blacklist',
     'django_filters',
+    'django_celery_beat',
+    'django_celery_results',
     'corsheaders',
     'daphne',
 ]
@@ -68,6 +82,7 @@ INSTALLED_APPS = [
 START_APPS = [
     'accounts.apps.AccountsConfig',
     'utilities.apps.UtilitiesConfig',
+    'admin_management.apps.AdminManagementConfig',
 ]
 
 INSTALLED_APPS += DJANGO_APPS + START_APPS
@@ -105,27 +120,42 @@ TEMPLATES = [
 # WSGI_APPLICATION = 'LaLouge.wsgi.application'
 ASGI_APPLICATION = 'LaLouge.asgi.application'
 
-# CHANNEL_LAYERS = {
-#     "default": {
-#         "BACKEND": "channels.layers.InMemoryChannelLayer",
-#     },
-# }
-
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [os.environ.get("REDIS_URL", "redis://localhost:6379")],
+if DEBUG:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
         },
-    },
-}
-
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": [os.environ.get("REDIS_URL", "redis://localhost:6379")]
     }
-}
+
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": ["redis://localhost:6379"]
+        }
+    }
+
+    CELERY_BROKER_URL = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [os.environ.get("REDIS_URL")],
+            },
+        },
+    }
+
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": [os.environ.get("REDIS_URL")]
+        }
+    }
+
+    CELERY_BROKER_URL = os.environ.get("REDIS_URL")
+    CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL")
 
 
 # REST_FRAMEWORK = {
@@ -214,9 +244,12 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+# Setting Language To British English (en-gb = English - Great Britain)
+# To Set It Back To American English, Set LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'en-gb'
 
-TIME_ZONE = 'UTC'
+# Setting Timezone To GMT+1 Instead of UTC
+TIME_ZONE = 'Europe/Paris'
 
 USE_I18N = True
 
@@ -224,12 +257,16 @@ USE_TZ = True
 
 
 # Celery Configuration
-CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_RESULT_EXTENDED = True
+
 
 # User model / to determine the model used for authentication
 AUTH_USER_MODEL = 'accounts.User'
@@ -272,3 +309,19 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+APPLICATION_SETTINGS = {
+    "CMD_SECRET_KEY": os.environ.get('CMD_SECRET_KEY', None),
+    # `INACTIVITY_LIMIT` Sets The Default Limit For Inactivity Such As Account Inactivity,
+    # Or Any Inactivity Recorded.
+    "INACTIVITY_LIMIT": timedelta(days=28)
+}
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    "delete_unverified_accounts": {
+        "task": "utilities.tasks.clean_up_unverified_accounts",
+        "schedule": 1209600, # Exactly 14 days in seconds (3600s = 1hour, 3600s * 24hours = 1day, 14days = 1209600seconds)
+    },
+}

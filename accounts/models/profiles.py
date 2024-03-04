@@ -95,7 +95,7 @@ class UserProfile(models.Model):
                     code="BAD_REQUEST",
                     status_code=400
                 )
-
+        
         self.statuses = list(statuses)
 
         self.save()
