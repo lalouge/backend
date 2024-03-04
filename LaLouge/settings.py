@@ -47,15 +47,19 @@ def is_localhost(ip_address):
     except socket.gaierror:
         return False
 
-# Based On Whether The Project Is Running On LocalHost, Set DEBUG To The Returned Value
-# For LocalHosts, DEBUG = True else DEBUG = False
-# For Security Purpose, Never Run The Project On Production When DEBUG = True
-DEBUG = is_localhost(socket.gethostbyname(socket.gethostname()))
 
-# Setting ALLOWED_HOSTS Based On Whether It's A Local Or Production Environment
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '::1'] if DEBUG else ['lalouge-6e539a53aeb4.herokuapp.com']
+# Use the DJANGO_ENV environment variable to determine the environment
+DJANGO_ENV = os.environ.get('DJANGO_ENV', 'development')
 
-print("ALLOWED HOST IS: ", ALLOWED_HOSTS)
+# Set DEBUG and ALLOWED_HOSTS based on the environment
+if DJANGO_ENV == 'production':
+    DEBUG = False
+    ALLOWED_HOSTS = ['.herokuapp.com']
+else:
+    DEBUG = is_localhost(socket.gethostbyname(socket.gethostname()))
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '::1']
+
+
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',
