@@ -53,9 +53,9 @@ def is_localhost(ip_address):
 DEBUG = is_localhost(socket.gethostbyname(socket.gethostname()))
 
 # Setting ALLOWED_HOSTS Based On Whether It's A Local Or Production Environment
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '::1'] if DEBUG else ['.herokuapp.com']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '::1'] if DEBUG else ['lalouge-6e539a53aeb4.herokuapp.com']
 
-
+print("ALLOWED HOST IS: ", ALLOWED_HOSTS)
 # Application definition
 DJANGO_APPS = [
     'django.contrib.admin',
